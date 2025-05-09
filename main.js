@@ -29,90 +29,163 @@ function parseSource(source) {
   return sections;
 }
 
-function renderSection(sections, sectionName, container) {
-    const content = sections[sectionName] || '';
+function renderSection(
+  sections,
+  sectionName,
+  container,
+  inline = false,
+  unfoldContainer = null
+) {
+  const content = sections[sectionName] || "";
+
+  if (inline) {
+    // Inline mode: just process the text, don't split into paragraphs
+    const regex = /(\[([^\]]+)\]|<([^>]+)>)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        container.appendChild(
+          document.createTextNode(content.slice(lastIndex, match.index))
+        );
+      }
+
+      if (match[2]) {
+        // [link]
+        const linkName = match[2];
+        const link = document.createElement("a");
+        link.href = "#";
+        link.textContent = linkName;
+        link.onclick = function (e) {
+          e.preventDefault();
+          link.onclick = null;
+          link.classList.add("disabled");
+          if (sections[linkName] && unfoldContainer) {
+            const unfolded = document.createElement("div");
+            unfolded.className = "unfolded";
+            unfolded.style.marginLeft = "16px";
+            renderSection(sections, linkName, unfolded, false);
+            unfoldContainer.appendChild(unfolded);
+          }
+        };
+        container.appendChild(link);
+      } else if (match[3]) {
+        // <inline>
+        const inlineName = match[3];
+        const link = document.createElement("a");
+        link.href = "#";
+        link.textContent = inlineName;
+        link.onclick = function (e) {
+          e.preventDefault();
+          const span = document.createElement("span");
+          span.style.fontStyle = "italic";
+          renderSection(sections, inlineName, span, true, unfoldContainer);
+          link.replaceWith(span);
+        };
+        container.appendChild(link);
+      }
+
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < content.length) {
+      container.appendChild(document.createTextNode(content.slice(lastIndex)));
+    }
+  } else {
+    // Block mode: split into paragraphs
     const paragraphs = content.split(/\n\s*\n/);
-  
+
     paragraphs.forEach((para, idx) => {
-      const p = document.createElement('div');
-      p.style.marginBottom = '1em';
-  
-      const unfoldContainer = document.createElement('div');
-      unfoldContainer.className = 'unfold-container';
-  
+      const p = document.createElement("div");
+      p.style.marginBottom = "1em";
+
+      // For each paragraph, we need a place to insert unfolded links
+      const localUnfoldContainer = document.createElement("div");
+      localUnfoldContainer.className = "unfold-container";
+
       const regex = /(\[([^\]]+)\]|<([^>]+)>)/g;
       let lastIndex = 0;
       let match;
-  
+
       while ((match = regex.exec(para)) !== null) {
         if (match.index > lastIndex) {
           p.appendChild(
             document.createTextNode(para.slice(lastIndex, match.index))
           );
         }
-  
+
         if (match[2]) {
+          // [link]
           const linkName = match[2];
-          const link = document.createElement('a');
+          const link = document.createElement("a");
+          link.href = "#";
           link.textContent = linkName;
           link.onclick = function (e) {
             e.preventDefault();
             link.onclick = null;
-            link.className = 'disabled';
+            link.classList.add("disabled");
             if (sections[linkName]) {
-              const unfolded = document.createElement('div');
-              unfolded.className = 'unfolded';
-              unfolded.style.marginLeft = '16px';
-              renderSection(sections, linkName, unfolded);
-              unfoldContainer.appendChild(unfolded);
+              const unfolded = document.createElement("div");
+              unfolded.className = "unfolded";
+              unfolded.style.marginLeft = "16px";
+              renderSection(sections, linkName, unfolded, false);
+              localUnfoldContainer.appendChild(unfolded);
             }
           };
           p.appendChild(link);
         } else if (match[3]) {
+          // <inline>
           const inlineName = match[3];
-          const link = document.createElement('a');
-          link.href = '#';
+          const link = document.createElement("a");
+          link.href = "#";
           link.textContent = inlineName;
           link.onclick = function (e) {
             e.preventDefault();
-            const span = document.createElement('span');
-            span.style.fontStyle = 'italic';
-            span.textContent = sections[inlineName] || inlineName;
+            const span = document.createElement("span");
+            span.style.fontStyle = "italic";
+            renderSection(
+              sections,
+              inlineName,
+              span,
+              true,
+              localUnfoldContainer
+            );
             link.replaceWith(span);
           };
           p.appendChild(link);
         }
-  
+
         lastIndex = regex.lastIndex;
       }
       if (lastIndex < para.length) {
-        p.appendChild(
-          document.createTextNode(para.slice(lastIndex))
-        );
+        p.appendChild(document.createTextNode(para.slice(lastIndex)));
       }
-  
+
       container.appendChild(p);
-      container.appendChild(unfoldContainer);
+      container.appendChild(localUnfoldContainer);
     });
+  }
 }
 
 function generateImageData() {
-    const player = document.getElementById('player');
-    return html2canvas(player, {
-        backgroundColor: '#fff',
-        scale: 2,
-        width: 400,
-        height: 400,
-        useCORS: true,
-    }).then(canvas => {
-        const dataUrl = canvas.toDataURL("image/png");
-        return dataUrl;
-    }).catch(error => {
-        console.error("Error generating image:", error);
-        return "";
+  const player = document.getElementById("player");
+  return html2canvas(player, {
+    backgroundColor: "#fff",
+    scale: 2,
+    width: 400,
+    height: 400,
+    useCORS: true,
+  })
+    .then((canvas) => {
+      const dataUrl = canvas.toDataURL("image/png");
+      return dataUrl;
+    })
+    .catch((error) => {
+      console.error("Error generating image:", error);
+      return "";
     });
 }
-  
+
 let initialSource = `
 // This is a comment. It will not show up in the final output.
 
@@ -132,35 +205,35 @@ let sections = parseSource(initialSource);
 // Load from URL params if ID exists
 const creationParam = new URL(window.location).searchParams.get("id");
 if (creationParam) {
-    const creation = await fetchPondiverseCreation(creationParam);
-    if (creation) {
-        sections = parseSource(creation.data);
-        initialSource = creation.data;
-    }
+  const creation = await fetchPondiverseCreation(creationParam);
+  if (creation) {
+    sections = parseSource(creation.data);
+    initialSource = creation.data;
+  }
 }
 
-const reloadButton = document.getElementById('reload');
+const reloadButton = document.getElementById("reload");
 reloadButton.onclick = function () {
   const newSource = sourceContainer.value;
   const newSections = parseSource(newSource);
-  player.innerHTML = '';
-  renderSection(newSections, 'main', player);
+  player.innerHTML = "";
+  renderSection(newSections, "main", player);
 };
 
 // Source container
-const sourceContainer = document.getElementById('source');
+const sourceContainer = document.getElementById("source");
 sourceContainer.value = initialSource;
 
 // Initial render
-renderSection(sections, 'main', player);
+renderSection(sections, "main", player);
 
 // Pondiverse
 addPondiverseButton(() => {
-    return generateImageData().then(imageData => {
-        return {
-            type: "linky",
-            data: sourceContainer.value,
-            image: imageData,
-        };
-    });
+  return generateImageData().then((imageData) => {
+    return {
+      type: "linky",
+      data: sourceContainer.value,
+      image: imageData,
+    };
+  });
 });
