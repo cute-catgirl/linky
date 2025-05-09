@@ -1,0 +1,50 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    height: 100vh;
+}
+
+main > div {
+    flex: 1;
+}
+
+hr {
+    margin: 20px 0;
+}
+
+#source-container > textarea {
+    width: 100%;
+    height: 100%;
+    resize: none;
+}
+
+#player-container {
+    font-family: monospace;
+    user-select: none;
+}
+
+a {
+    color: #0000ff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+a.disabled {
+    pointer-events: none;
+    color: gray;
+}
+
+#pondiverse-dialog {
+    margin: auto;
+}
