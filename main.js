@@ -1,4 +1,4 @@
-import { addPondiverseButton, fetchPondiverseCreation } from "./pondiverse.js";
+import { addPondiverseButton, fetchPondiverseCreation } from "/pondiverse.js";
 
 function parseSource(source) {
   const lines = source.split("\n");
